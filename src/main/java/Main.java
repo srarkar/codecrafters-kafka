@@ -9,6 +9,7 @@ import java.net.Socket;
 
 
 public class Main {
+  private static final int UNSUPPORTED_VERSION = 35;
   public static void main(String[] args){
     // You can use print statements as follows for debugging, they'll be visible when running tests.
     //System.err.println("Logs from your program will appear here!");
@@ -23,23 +24,30 @@ public class Main {
       serverSocket.setReuseAddress(true);
       // Wait for connection from client.
       clientSocket = serverSocket.accept();
+      int error_code = 0;
       InputStream inputStream = clientSocket.getInputStream();
       OutputStream outputStream = clientSocket.getOutputStream();
       
-
-      // client input
+      // Data Streams
       DataInputStream in = new DataInputStream(inputStream);
-      // parse input from client
+      DataOutputStream out = new DataOutputStream(outputStream);
+
+      // parse client input
       int message_size = in.readInt();
       int request_api_key = in.readShort();
       int request_api_version = in.readShort();
       int correlation_id = in.readInt(); 
+      if (request_api_version > 4) {
+        error_code = UNSUPPORTED_VERSION;
+      }
 
       // broker response
-      DataOutputStream out = new DataOutputStream(outputStream);
-      out.writeInt(0); // filler message
+      out.writeInt(message_size);
       out.writeInt(correlation_id);
       
+      if (error_code != 0) {
+        out.writeShort(error_code);
+      }
     } catch (IOException e) {
       System.out.println("IOException: " + e.getMessage());
     } finally {
