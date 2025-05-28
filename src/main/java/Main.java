@@ -1,8 +1,11 @@
+import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+
 
 
 public class Main {
@@ -20,10 +23,22 @@ public class Main {
       serverSocket.setReuseAddress(true);
       // Wait for connection from client.
       clientSocket = serverSocket.accept();
+      InputStream inputStream = clientSocket.getInputStream();
       OutputStream outputStream = clientSocket.getOutputStream();
+      
+
+      // client input
+      DataInputStream in = new DataInputStream(inputStream);
+      // parse input from client
+      int message_size = in.readInt();
+      int request_api_key = in.readShort();
+      int request_api_version = in.readShort();
+      int correlation_id = in.readInt(); 
+
+      // broker response
       DataOutputStream out = new DataOutputStream(outputStream);
-      out.writeInt(0);
-      out.writeInt(7);
+      out.writeInt(0); // filler message
+      out.writeInt(correlation_id);
       
     } catch (IOException e) {
       System.out.println("IOException: " + e.getMessage());
