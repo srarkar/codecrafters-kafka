@@ -1,53 +1,50 @@
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-
-
+import java.util.Arrays;
 
 public class Main {
-  private static final int UNSUPPORTED_VERSION = 35;
-  public static void main(String[] args){
-    // You can use print statements as follows for debugging, they'll be visible when running tests.
-    //System.err.println("Logs from your program will appear here!");
+  private static final byte[] UNSUPPORTED_VERSION = {0, 35};
 
+  public static void main(String[] args){
     ServerSocket serverSocket = null;
     Socket clientSocket = null;
     int port = 9092;
+
     try {
       serverSocket = new ServerSocket(port);
-      // Since the tester restarts your program quite often, setting SO_REUSEADDR
-      // ensures that we don't run into 'Address already in use' errors
       serverSocket.setReuseAddress(true);
-      // Wait for connection from client.
+      // connection from client
       clientSocket = serverSocket.accept();
-      int error_code = 0;
+      System.out.println("Connected to client.");
+
+      byte[] error;
       InputStream inputStream = clientSocket.getInputStream();
       OutputStream outputStream = clientSocket.getOutputStream();
-      
-      // Data Streams
-      DataInputStream in = new DataInputStream(inputStream);
-      DataOutputStream out = new DataOutputStream(outputStream);
+      var messageBlock = new byte[32];
 
-      // parse client input
-      int message_size = in.readInt();
-      int request_api_key = in.readShort();
-      int request_api_version = in.readShort();
-      int correlation_id = in.readInt(); 
-      if (request_api_version > 4) {
-        error_code = UNSUPPORTED_VERSION;
+      inputStream.read(messageBlock); // read 32 bytes from client
+      final var correlationId = Arrays.copyOfRange(messageBlock, 8, 12);
+      final var api_version = Arrays.copyOfRange(messageBlock, 6, 8);
+      if (api_version[0] != 0 || api_version[1] > 4) { 
+        error = UNSUPPORTED_VERSION;
+      } else {
+        error = new byte[] {0, 0};
       }
-
-      // broker response
-      out.writeInt(message_size);
-      out.writeInt(correlation_id);
       
-      if (error_code != 0) {
-        out.writeShort(error_code);
-      }
+
+      outputStream.write(new byte[] {0, 0, 0, 19}); // message len: 19 bytes
+      outputStream.write(correlationId); // correlation_id: 4 bytes
+      outputStream.write(error); // api_version: 2 bytes
+      // api versions body: 13 bytes
+      outputStream.write(new byte[] {2}); // num API keys?? not sure why
+      outputStream.write(new byte[] {0, 18}); // api key
+      outputStream.write(new byte[] {0, 0}); // min version 0
+      outputStream.write(new byte[] {0, 4}); // max version 4
+      outputStream.write(new byte[] {0, 0, 0, 0, 0, 0}); // TAG_BUFFER and throttle_time (0)
+
     } catch (IOException e) {
       System.out.println("IOException: " + e.getMessage());
     } finally {
